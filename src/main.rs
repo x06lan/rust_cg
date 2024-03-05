@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use compute_shader::compute_shader;
 use copy_buffer::copy_buffer;
+use graphics_pipeline::graphics_pipeline;
 use image::image;
 use vulkano::{
     device::{physical::PhysicalDevice, Device, DeviceCreateInfo, QueueCreateInfo, QueueFlags},
@@ -12,6 +13,7 @@ use vulkano::{
 
 mod compute_shader;
 mod copy_buffer;
+mod graphics_pipeline;
 mod image;
 
 #[allow(unused)]
@@ -51,6 +53,8 @@ fn main() -> anyhow::Result<()> {
     compute_shader(device.clone(), queue.clone(), memory_allocator.clone())?;
 
     image(device.clone(), queue.clone(), memory_allocator.clone())?;
+
+    graphics_pipeline(device.clone(), queue.clone(), memory_allocator.clone())?;
 
     Ok(())
 }
