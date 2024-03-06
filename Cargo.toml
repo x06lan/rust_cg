@@ -1,6 +1,7 @@
 [workspace]
 
-members = ["basic", "windowing"]
+members = ["basic", "teapot", "windowing"]
+resolver = "2"
 
 [profile.dev]
 opt-level = 1
