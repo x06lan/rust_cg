@@ -59,6 +59,8 @@ use winit::{
     window::WindowBuilder,
 };
 
+use egui::{ScrollArea, TextEdit, TextStyle};
+use egui_winit_vulkano::{egui, Gui, GuiConfig};
 mod data;
 
 fn main() {
@@ -144,7 +146,7 @@ fn main() {
 
         Swapchain::new(
             device.clone(),
-            surface,
+            surface.clone(),
             SwapchainCreateInfo {
                 min_image_count: surface_capabilities.min_image_count.max(2),
                 image_format,
@@ -265,6 +267,16 @@ fn main() {
     let command_buffer_allocator =
         StandardCommandBufferAllocator::new(device.clone(), Default::default());
 
+    let mut gui = {
+        Gui::new(
+            &event_loop,
+            surface.clone(),
+            queue.clone(),
+            swapchain.image_format(),
+            GuiConfig::default(),
+        )
+    };
+    let mut code = CODE.to_owned();
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
@@ -286,6 +298,33 @@ fn main() {
                     return;
                 }
 
+                gui.immediate_ui(|gui| {
+                    let ctx = gui.context();
+                    egui::CentralPanel::default().show(&ctx, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.add(egui::widgets::Label::new("Hi there!"));
+                            // sized_text(ui, "Rich Text", 32.0);
+                            ui.label(egui::RichText::new("text").size(32.0));
+                        });
+                        ui.separator();
+                        ui.columns(2, |columns| {
+                            ScrollArea::vertical().id_source("source").show(
+                                &mut columns[0],
+                                |ui| {
+                                    ui.add(
+                                        TextEdit::multiline(&mut code).font(TextStyle::Monospace),
+                                    );
+                                },
+                            );
+                            // ScrollArea::vertical().id_source("rendered").show(
+                            //     &mut columns[1],
+                            //     |ui| {
+                            //         egui_demo_lib::easy_mark::easy_mark(ui, &code);
+                            //     },
+                            // );
+                        });
+                    });
+                });
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
                 if recreate_swapchain {
@@ -550,3 +589,10 @@ mod fs {
         path: "src/frag.glsl",
     }
 }
+
+const CODE: &str = r"
+# Some markup
+```
+let mut gui = Gui::new(&event_loop, renderer.surface(), None, renderer.queue(), SampleCount::Sample1);
+```
+";
