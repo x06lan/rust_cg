@@ -14,8 +14,9 @@ use std::{sync::Arc, time::Instant};
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use egui::{epaint::Shadow, style::Margin, vec2, Align, Align2, Color32, Frame, Rounding, Window};
 use egui_winit_vulkano::{egui, Gui, GuiConfig};
+use vulkano::buffer::view;
 use vulkano::descriptor_set::layout::{DescriptorSetLayoutCreateFlags, DescriptorType};
-use vulkano::pipeline::{Pipeline, PipelineBindPoint};
+use vulkano::pipeline::{DynamicState, Pipeline, PipelineBindPoint};
 use vulkano::{
     buffer::{
         allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
@@ -171,11 +172,13 @@ pub fn main() {
 }
 
 struct SimpleGuiPipeline {
+    start_time: Instant,
     queue: Arc<Queue>,
     render_pass: Arc<RenderPass>,
     pipeline: Arc<GraphicsPipeline>,
     subpass: Subpass,
     vertex_buffer: Subbuffer<[MyVertex]>,
+    index_buffer: Subbuffer<[u32]>,
     uniform_buffer: Subbuffer<vs::Data>,
     command_buffer_allocator: StandardCommandBufferAllocator,
     descriptor_set_allocator: StandardDescriptorSetAllocator,
@@ -205,30 +208,61 @@ impl SimpleGuiPipeline {
             },
             [
                 MyVertex {
-                    position: [-0.5, -0.25, 0.0],
+                    position: [-1.0, -1.0, -1.0],
                     color: [1.0, 0.0, 0.0, 1.0],
-                },
+                }, // Red
                 MyVertex {
-                    position: [0.0, 0.5, 0.0],
+                    position: [1.0, -1.0, -1.0],
                     color: [0.0, 1.0, 0.0, 1.0],
-                },
+                }, // Green
                 MyVertex {
-                    position: [0.25, -0.1, 0.0],
+                    position: [1.0, 1.0, -1.0],
                     color: [0.0, 0.0, 1.0, 1.0],
-                },
+                }, // Blue
+                MyVertex {
+                    position: [-1.0, 1.0, -1.0],
+                    color: [1.0, 1.0, 0.0, 1.0],
+                }, // Yellow
+                MyVertex {
+                    position: [-1.0, -1.0, 1.0],
+                    color: [1.0, 0.0, 1.0, 1.0],
+                }, // Magenta
+                MyVertex {
+                    position: [1.0, -1.0, 1.0],
+                    color: [0.0, 1.0, 1.0, 1.0],
+                }, // Cyan
+                MyVertex {
+                    position: [1.0, 1.0, 1.0],
+                    color: [0.5, 0.5, 0.5, 1.0],
+                }, // Gray
+                MyVertex {
+                    position: [-1.0, 1.0, 1.0],
+                    color: [0.7, 0.7, 0.7, 1.0],
+                }, // Light Gray
             ],
         )
         .unwrap();
-
-        // let uniform_buffer = SubbufferAllocator::new(
-        //     allocator.clone(),
-        //     SubbufferAllocatorCreateInfo {
-        //         buffer_usage: BufferUsage::UNIFORM_BUFFER,
-        //         memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-        //             | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-        //         ..Default::default()
-        //     },
-        // );
+        let index_buffer = Buffer::from_iter(
+            allocator.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::INDEX_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            [
+                0, 1, 2, 2, 3, 0, // Front face
+                1, 5, 6, 6, 2, 1, // Right face
+                4, 5, 6, 6, 7, 4, // Back face
+                4, 0, 3, 3, 7, 4, // Left face
+                3, 2, 6, 6, 7, 3, // Top face
+                0, 1, 5, 5, 4, 0, // Bottom face
+            ],
+        )
+        .unwrap();
 
         let uniform_buffer = Buffer::new_sized(
             allocator.clone(),
@@ -255,13 +289,16 @@ impl SimpleGuiPipeline {
                 ..Default::default()
             },
         );
+        let start_time = Instant::now();
 
         Self {
+            start_time,
             queue,
             render_pass,
             pipeline,
             subpass,
             vertex_buffer,
+            index_buffer,
             uniform_buffer,
             command_buffer_allocator,
             descriptor_set_allocator,
@@ -357,7 +394,7 @@ impl SimpleGuiPipeline {
                         depth: Some(DepthState::simple()),
                         ..Default::default()
                     }),
-                    // dynamic_state: [DynamicState::Viewport].into_iter().collect(),
+                    dynamic_state: [DynamicState::Viewport].into_iter().collect(),
                     subpass: Some(subpass.clone().into()),
                     ..GraphicsPipelineCreateInfo::layout(layout)
                 },
@@ -406,8 +443,7 @@ impl SimpleGuiPipeline {
         )
         .unwrap();
         *self.uniform_buffer.write().unwrap() = {
-            let rotation_start = Instant::now();
-            let elapsed = rotation_start.elapsed();
+            let elapsed = self.start_time.elapsed();
             let rotation =
                 elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
             let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
@@ -416,9 +452,9 @@ impl SimpleGuiPipeline {
             //       instead the origin is at the upper left in Vulkan, so we reverse the Y axis
             let aspect_ratio = extent[0] as f32 / extent[1] as f32;
             let proj =
-                cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.01, 100.0);
+                cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.05, 10.0);
             let view = Matrix4::look_at_rh(
-                Point3::new(0.3, 0.3, 1.0),
+                Point3::new(0.1, 0.1, 0.1),
                 Point3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, -1.0, 0.0),
             );
@@ -474,7 +510,14 @@ impl SimpleGuiPipeline {
             },
         )
         .unwrap();
+        let viewport = Viewport {
+            offset: [0.0, 0.0],
+            extent: [extent[0] as f32, extent[1] as f32],
+            depth_range: 0.0..=1.0,
+        };
         secondary_builder
+            .set_viewport(0, [viewport.clone()].into_iter().collect())
+            .unwrap()
             .bind_pipeline_graphics(self.pipeline.clone())
             .unwrap()
             .bind_descriptor_sets(
@@ -486,7 +529,9 @@ impl SimpleGuiPipeline {
             .unwrap()
             .bind_vertex_buffers(0, self.vertex_buffer.clone())
             .unwrap()
-            .draw(self.vertex_buffer.len() as u32, 1, 0, 0)
+            .bind_index_buffer(self.index_buffer.clone())
+            .unwrap()
+            .draw_indexed(self.index_buffer.len() as u32, 1, 0, 0, 0)
             .unwrap();
         let cb = secondary_builder.build().unwrap();
         builder.execute_commands(cb).unwrap();
