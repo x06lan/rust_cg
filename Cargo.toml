@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["basic", "teapot", "windowing"]
+members = ["basic", "egui-3d", "windowing"]
 resolver = "2"
 
 [profile.dev]

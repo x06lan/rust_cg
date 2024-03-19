@@ -437,6 +437,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-3d"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "egui_winit_vulkano",
+ "vulkano",
+ "vulkano-shaders",
+ "vulkano-util",
+ "winit",
+]
+
+[[package]]
 name = "egui-winit"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1429,18 +1441,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "teapot"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "egui_winit_vulkano",
- "vulkano",
- "vulkano-shaders",
- "vulkano-util",
- "winit",
 ]
 
 [[package]]
